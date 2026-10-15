@@ -1,0 +1,2 @@
+# Sarashina_app_transrate
+SarashinaのAPIを用いたスマホ用の自動翻訳アプリ
