@@ -1,0 +1,94 @@
+# テストと APK のビルドを GitHub Actions で行う。
+# - main への push / Pull Request: テストして debug APK を Artifacts に保存
+# - v で始まるタグ (例: v0.1.0) の push: release APK を作って GitHub Releases に公開
+name: Android
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v4
+
+      # gradle-wrapper.jar の検証とキャッシュ
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Test and build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleDebug --console=plain
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v4
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Secrets に署名鍵があればそれで署名する。なければ debug 用の鍵で署名される
+      - name: Prepare signing key
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::SIGNING_KEYSTORE_BASE64 が未設定のため、debug 用の鍵で署名します"
+          fi
+
+      - name: Build release APK
+        env:
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --console=plain
+          cp app/build/outputs/apk/release/app-release.apk "SarashinaTranslate-${GITHUB_REF_NAME}.apk"
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: SarashinaTranslate-${{ github.ref_name }}.apk
+          generate_release_notes: true

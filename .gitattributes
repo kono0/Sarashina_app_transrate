@@ -1,0 +1,10 @@
+# 改行コードを OS によらずそろえる（gradlew は Linux / macOS で動くよう LF 固定）
+* text=auto
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# バイナリ
+*.jar binary
+*.aar binary
+*.png binary

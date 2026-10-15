@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+.gradle-home/
+build/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+# Android Studio が作る Gradle デーモン用 JDK の指定（各自の JDK 17 以上で動かすため共有しない）
+gradle/gradle-daemon-jvm.properties
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ローカル設定（SDK パスと API キー）
+local.properties
+
+# 署名鍵（絶対に公開しない）
+signing/
+*.jks
+*.keystore
+
+# JVM のクラッシュログ（PC の環境情報が含まれる）
+hs_err_pid*.log
+replay_pid*.log
+
+# OS
+.DS_Store
+Thumbs.db
